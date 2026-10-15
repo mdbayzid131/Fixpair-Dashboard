@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { io, Socket } from 'socket.io-client';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
+import { createSocketConnection } from '@/lib/socket';
 
 function CallPageContent() {
   const router = useRouter();
@@ -146,36 +147,34 @@ function CallPageContent() {
         let sessionId: string | null = null;
         let resData: any = null;
 
-        // Step 1: Check for existing active video session first (prevents 500 duplicate session errors)
+        // Step 1: Create or re-initiate video session (triggers backend VoIP push & socket signaling to the client)
         try {
-          const listRes = await api.get('/video-session');
-          console.log("Active sessions check:", listRes.data);
-          const sessions = listRes.data?.data || listRes.data;
-          if (Array.isArray(sessions)) {
-            const existing = sessions.find((s: any) => 
-              s.consultation === consultationId || 
-              s.consultation?._id === consultationId || 
-              s.consultationId === consultationId
-            );
-            if (existing) {
-              console.log("Found existing video session:", existing);
-              resData = existing;
-              sessionId = existing.sessionId || existing.id || existing._id;
-            }
-          }
-        } catch (listErr: any) {
-          console.warn("Check for existing video session failed:", listErr?.message);
-        }
-
-        // If no existing session found, create a new one
-        if (!sessionId) {
+          const createRes = await api.post('/video-session/create', { consultationId });
+          console.log("Create/re-initiate session response:", createRes.data);
+          resData = createRes.data?.data || createRes.data;
+          sessionId = resData?.sessionId || resData?.id || resData?._id || resData?.session?.sessionId || resData?.session?.id || resData?.session?._id;
+        } catch (createErr: any) {
+          console.warn("Create video session attempt failed, checking existing sessions as fallback:", createErr?.response?.data?.message || createErr.message);
           try {
-            const createRes = await api.post('/video-session/create', { consultationId });
-            console.log("Create session response:", createRes.data);
-            resData = createRes.data?.data || createRes.data;
-            sessionId = resData?.sessionId || resData?.id || resData?._id || resData?.session?.sessionId || resData?.session?.id || resData?.session?._id;
-          } catch (createErr: any) {
-            console.warn("Create video session failed:", createErr?.response?.data?.message || createErr.message);
+            const listRes = await api.get('/video-session');
+            const sessions = listRes.data?.data || listRes.data;
+            if (Array.isArray(sessions)) {
+              const existing = sessions.find((s: any) => 
+                s.consultation === consultationId || 
+                s.consultation?._id === consultationId || 
+                s.consultationId === consultationId
+              );
+              if (existing) {
+                console.log("Found existing video session as fallback:", existing);
+                resData = existing;
+                sessionId = existing.sessionId || existing.id || existing._id;
+              }
+            }
+          } catch (listErr: any) {
+            console.warn("Check for existing video session fallback failed:", listErr?.message);
+          }
+
+          if (!sessionId) {
             throw createErr;
           }
         }
@@ -449,15 +448,7 @@ function CallPageContent() {
     const token = Cookies.get("accessToken");
     if (!token) return;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://10.10.7.106:5000/api/v1";
-    let socketUrl = "http://10.10.7.106:5000";
-    try {
-      socketUrl = new URL(apiUrl).origin;
-    } catch {}
-
-    const socket: Socket = io(socketUrl, {
-      transports: ["websocket", "polling"],
-      auth: { token },
+    const socket: Socket = createSocketConnection({
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,

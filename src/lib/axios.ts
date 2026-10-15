@@ -2,14 +2,16 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://10.10.7.106:5000/api/v1',
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
   headers: {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
   },
 });
 
 api.interceptors.request.use(
   (config) => {
+    config.headers['ngrok-skip-browser-warning'] = 'true';
     const token = Cookies.get('accessToken');
     if (token && token !== 'undefined' && token !== 'null' && token.trim() !== '') {
       config.headers.Authorization = `Bearer ${token.trim()}`;
