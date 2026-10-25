@@ -206,7 +206,7 @@ export function useTranscription({
       recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = 'en-US';
+      recognition.lang = 'de-DE';
 
       recognition.onresult = (event: any) => {
         let interimText = '';
@@ -244,6 +244,14 @@ export function useTranscription({
       };
 
       recognition.onerror = (err: any) => {
+        // Browser recognition supports one locale per run; Agora handles both.
+        if (err.error === 'language-not-supported') {
+          if (recognition.lang === 'de-DE') {
+            recognition.lang = 'en-US';
+          } else {
+            isActive = false;
+          }
+        }
         if (err.error !== 'no-speech') {
           console.warn('SpeechRecognition notice:', err.error);
         }
