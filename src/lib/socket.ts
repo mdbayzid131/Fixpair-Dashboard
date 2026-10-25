@@ -2,17 +2,12 @@
 
 import { io, Socket } from "socket.io-client";
 import Cookies from "js-cookie";
+import { getServerUrl } from "./api-config";
 
 let globalSocket: Socket | null = null;
 
 export function getSocketUrl(): string {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-  try {
-    const url = new URL(apiUrl);
-    return url.origin;
-  } catch {
-    return apiUrl.replace(/\/api\/v1\/?$/, "");
-  }
+  return getServerUrl();
 }
 
 /**
@@ -32,11 +27,11 @@ export function createSocketConnection(customOptions: any = {}): Socket {
   return io(socketUrl, {
     transports: ["websocket", "polling"],
     extraHeaders: {
-      "ngrok-skip-browser-warning": "true",
+
       ...(extraHeaders || {}),
     },
     auth: auth !== undefined ? auth : (rawToken ? { token: rawToken } : undefined),
-    query: query !== undefined ? query : (rawToken ? { token: rawToken } : undefined),
+    query,
     ...restOptions,
   });
 }

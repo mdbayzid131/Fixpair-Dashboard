@@ -320,95 +320,18 @@ function CallPageContent() {
       }
     }
 
-    // 2. Fire backend APIs with Promise.allSettled
-    const apiTasks: Promise<any>[] = [];
-
-    if (sessId) {
-      if (isCompletedCall) {
-        console.log("🚀 Fired POST /video-session/end and POST /video-session/action (END) for sessionId:", sessId);
-        apiTasks.push(
-          api.post('/video-session/end', { 
-            sessionId: sessId,
-            consultationId: currentConsId
-          }).catch(err => {
-            console.warn("POST /video-session/end error:", err?.response?.data || err.message);
-          })
-        );
-        apiTasks.push(
-          api.post('/video-session/action', { 
-            sessionId: sessId, 
-            action: 'END' 
-          }).catch(err => {
-            console.warn("POST /video-session/action (END) error:", err?.response?.data || err.message);
-          })
-        );
-      } else {
-        console.log("🚀 Fired POST /video-session/action (CANCEL) for sessionId (Pre-join):", sessId);
-        apiTasks.push(
-          api.post('/video-session/action', { 
-            sessionId: sessId, 
-            action: 'CANCEL' 
-          }).catch(() => null)
-        );
+    // One authoritative teardown request prevents parallel invoice finalization.
+    const actionSessionId = sessId || currentConsId;
+    if (actionSessionId) {
+      try {
+        await api.post('/video-session/action', {
+          sessionId: actionSessionId,
+          action: isCompletedCall ? 'END' : 'CANCEL',
+        });
+      } catch (error) {
+        console.warn('Call teardown failed:', error);
+        toast.error('Could not confirm call cleanup with the server');
       }
-    }
-
-    if (currentConsId && currentConsId !== sessId) {
-      if (isCompletedCall) {
-        apiTasks.push(
-          api.post('/video-session/end', { 
-            sessionId: currentConsId 
-          }).catch(() => null)
-        );
-        apiTasks.push(
-          api.post('/video-session/action', { 
-            sessionId: currentConsId, 
-            action: 'END' 
-          }).catch(() => null)
-        );
-      } else {
-        apiTasks.push(
-          api.post('/video-session/action', { 
-            sessionId: currentConsId, 
-            action: 'CANCEL' 
-          }).catch(() => null)
-        );
-      }
-    }
-
-    if (currentConsId) {
-      if (isCompletedCall) {
-        apiTasks.push(
-          api.patch(`/consultation/status/${currentConsId}`, { 
-            status: 'completed' 
-          }).catch(statusErr => {
-            console.warn("Consultation status update warning:", statusErr?.response?.data || statusErr.message);
-          })
-        );
-        apiTasks.push(
-          api.post(`/consultation/complete/${currentConsId}`).catch(() => null)
-        );
-        if (currentIsCallback) {
-          apiTasks.push(
-            api.post(`/consultation/end-callback/${currentConsId}`).catch(() => null)
-          );
-          apiTasks.push(
-            api.post(`/consultation/complete-callback/${currentConsId}`).catch(() => null)
-          );
-        }
-      } else {
-        apiTasks.push(
-          api.patch(`/consultation/status/${currentConsId}`, { 
-            status: 'cancelled' 
-          }).catch(() => null)
-        );
-      }
-    }
-
-    try {
-      await Promise.allSettled(apiTasks);
-    } catch (e) {
-      console.warn("API execution warning on end call:", e);
     }
 
     // 3. Leave Agora call UI
