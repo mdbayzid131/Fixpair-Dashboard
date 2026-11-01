@@ -24,14 +24,6 @@ test.describe('Authentication & Login E2E Tests', () => {
     await expect(passwordInput).toHaveAttribute('type', 'text');
   });
 
-  test('should fill credentials via Admin Login preset button', async ({ page }) => {
-    const adminLoginBtn = page.getByRole('button', { name: 'Admin Login' });
-    await expect(adminLoginBtn).toBeVisible();
-    await adminLoginBtn.click();
-
-    await expect(page.getByPlaceholder('Enter your email')).toHaveValue('shakayet.dev@gmail.com');
-    await expect(page.getByPlaceholder('Enter your password')).toHaveValue('12345678');
-  });
 
   test('should show error on invalid login attempt', async ({ page }) => {
     await page.getByPlaceholder('Enter your email').fill('invalid@example.com');
@@ -44,7 +36,9 @@ test.describe('Authentication & Login E2E Tests', () => {
   });
 
   test('should successfully submit admin login form', async ({ page }) => {
-    await page.getByRole('button', { name: 'Admin Login' }).click();
+    test.skip(!process.env.E2E_ADMIN_EMAIL || !process.env.E2E_ADMIN_PASSWORD, 'Admin test credentials are required');
+    await page.getByPlaceholder('Enter your email').fill(process.env.E2E_ADMIN_EMAIL!);
+    await page.getByPlaceholder('Enter your password').fill(process.env.E2E_ADMIN_PASSWORD!);
     await page.locator('form button[type="submit"]').click();
 
     await page.waitForTimeout(2000);
