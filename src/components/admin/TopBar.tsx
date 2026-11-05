@@ -31,7 +31,7 @@ import NotificationDropdown from "@/components/NotificationDropdown";
 
 export default function TopBar() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { theme, setTheme } = useTheme();
   const t = useTranslations("admin_topbar");
 
@@ -68,7 +68,7 @@ export default function TopBar() {
             <button className="flex items-center gap-3 pl-2 pr-1 py-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-all outline-none border border-transparent hover:border-slate-100 dark:hover:border-slate-700 group cursor-pointer lg:min-w-[180px]">
               <div className="hidden lg:block text-right">
                 <div className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{t("super_admin")}</div>
-                <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">admin@fixpair.com</div>
+                <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium truncate max-w-[140px]">{user?.email || "fixpair@outlook.com"}</div>
               </div>
               <div className="relative">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-blue-500/20">
