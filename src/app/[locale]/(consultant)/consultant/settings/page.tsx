@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Camera, Mail, Briefcase, CheckCircle2, Globe, Hash, Clock, Award, User, Layers } from "lucide-react";
+import { Camera, Mail, Briefcase, CheckCircle2, Globe, Hash, Clock, Award, User, Layers, KeyRound, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,17 @@ export default function ConsultantSettings() {
     perMinuteRate: "",
   });
 
+  // Password state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isPasswordSaved, setIsPasswordSaved] = useState(false);
 
   const fetchProfile = async () => {
     try {
@@ -100,7 +111,7 @@ export default function ConsultantSettings() {
       const formDataObj = new FormData();
       formDataObj.append('data', JSON.stringify(payload));
       if (selectedFile) {
-        formDataObj.append('image', selectedFile); // Assuming 'image' is the field name backend expects
+        formDataObj.append('image', selectedFile);
       }
 
       const response = await api.patch('/user/profile', formDataObj);
@@ -109,7 +120,6 @@ export default function ConsultantSettings() {
         setIsSaved(true);
         toast.success(response.data.message || "Profile updated successfully!");
         
-        // Refetch profile to ensure state reflects exact backend values
         await fetchProfile();
         
         if (isForced) {
@@ -125,6 +135,61 @@ export default function ConsultantSettings() {
       toast.error(error.response?.data?.message || "Failed to update profile");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!passwordData.currentPassword.trim()) {
+      toast.error("Please enter your current password");
+      return;
+    }
+
+    if (!passwordData.newPassword) {
+      toast.error("Please enter a new password");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters long");
+      return;
+    }
+
+    if (passwordData.currentPassword === passwordData.newPassword) {
+      toast.error("New password must be different from current password");
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("New password and confirm password do not match");
+      return;
+    }
+
+    try {
+      setIsChangingPassword(true);
+      const response = await api.post("/auth/change-password", {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword,
+      });
+
+      if (response.data.success) {
+        setIsPasswordSaved(true);
+        toast.success(response.data.message || "Password changed successfully!");
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+        setTimeout(() => setIsPasswordSaved(false), 3000);
+      } else {
+        toast.error(response.data.message || "Failed to change password");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to change password");
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -301,7 +366,136 @@ export default function ConsultantSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Change Password Card */}
+      <Card className="border-0 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl bg-white/80 backdrop-blur-xl overflow-hidden ring-1 ring-slate-100">
+        <CardHeader className="border-b border-slate-100/50 p-8 bg-white/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-50 rounded-xl">
+              <KeyRound className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <CardTitle className="text-2xl font-bold text-slate-800">Change Password</CardTitle>
+              <CardDescription className="text-[14px] mt-1 font-medium">Update your password to keep your consultant account secure.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-8 space-y-6">
+          <form onSubmit={handleChangePassword} className="space-y-6">
+            <div className="space-y-4 max-w-md">
+              {/* Current Password */}
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword" className="text-sm font-bold text-slate-700 ml-1">
+                  Current Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="currentPassword"
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={passwordData.currentPassword}
+                    onChange={(e) =>
+                      setPasswordData((prev) => ({ ...prev, currentPassword: e.target.value }))
+                    }
+                    placeholder="Enter current password"
+                    className="h-12 pr-12 rounded-xl border-slate-200 bg-slate-50/50 hover:bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold text-slate-800 shadow-sm"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                  >
+                    {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div className="space-y-2">
+                <Label htmlFor="newPassword" className="text-sm font-bold text-slate-700 ml-1">
+                  New Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showNewPassword ? "text" : "password"}
+                    value={passwordData.newPassword}
+                    onChange={(e) =>
+                      setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))
+                    }
+                    placeholder="Enter new password (min. 8 characters)"
+                    className="h-12 pr-12 rounded-xl border-slate-200 bg-slate-50/50 hover:bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold text-slate-800 shadow-sm"
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                  >
+                    {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+                <p className="text-xs font-medium text-slate-400 ml-1">
+                  Must be at least 8 characters long.
+                </p>
+              </div>
+
+              {/* Confirm New Password */}
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-sm font-bold text-slate-700 ml-1">
+                  Confirm New Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={passwordData.confirmPassword}
+                    onChange={(e) =>
+                      setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))
+                    }
+                    placeholder="Re-enter new password"
+                    className="h-12 pr-12 rounded-xl border-slate-200 bg-slate-50/50 hover:bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold text-slate-800 shadow-sm"
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="bg-slate-100/60" />
+
+            <div className="flex items-center justify-between pt-2">
+              <div className="flex-1">
+                {isPasswordSaved && (
+                  <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-4 py-2 rounded-lg font-bold animate-in fade-in slide-in-from-left-4 duration-300 w-fit">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <span>Password updated successfully!</span>
+                  </div>
+                )}
+              </div>
+              <Button
+                type="submit"
+                className="px-8 h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold transition-all shadow-lg shadow-blue-500/25 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                disabled={isChangingPassword}
+              >
+                {isChangingPassword ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Updating...
+                  </>
+                ) : (
+                  "Update Password"
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-
